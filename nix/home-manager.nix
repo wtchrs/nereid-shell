@@ -12,10 +12,12 @@ let
   cfg = config.programs.nereid-shell;
   system = pkgs.stdenv.hostPlatform.system;
   defaultPackage = self.packages.${system}.default;
-  hasNiriSettings =
-    options ? programs
-    && options.programs ? niri
-    && options.programs.niri ? settings;
+  configuredPackage = import ./package.nix {
+    inherit pkgs;
+    inherit (pkgs) lib;
+    inherit (cfg) programProviders;
+  };
+  hasNiriSettings = options ? programs && options.programs ? niri && options.programs.niri ? settings;
 in
 {
   options.programs.nereid-shell = {
@@ -26,6 +28,21 @@ in
       default = defaultPackage;
       defaultText = lib.literalExpression "inputs.nereid-shell.packages.\${pkgs.stdenv.hostPlatform.system}.default";
       description = "Nereid Shell package to install.";
+    };
+
+    programProviders = lib.mkOption {
+      type = lib.types.listOf (lib.types.either lib.types.str lib.types.path);
+      default = [ ];
+      example = lib.literalExpression ''
+        [
+          "''${pkgs.umu-exe-list}/bin/umu-exe-list"
+          "''${config.home.homeDirectory}/.local/bin/list-wine-apps"
+        ]
+      '';
+      description = ''
+        Executable scripts or binaries that return additional launcher entries
+        as a JSON array. Each provider is run without arguments.
+      '';
     };
 
     enableQuickshellProgram = lib.mkOption {
@@ -44,7 +61,9 @@ in
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
       {
-        home.packages = [ cfg.package ];
+        home.packages = [
+          (if cfg.programProviders == [ ] then cfg.package else configuredPackage)
+        ];
 
         programs.quickshell.enable = cfg.enableQuickshellProgram;
       }
@@ -52,7 +71,12 @@ in
       (lib.mkIf (cfg.niriIntegration.enable && hasNiriSettings) {
         programs.niri.settings = {
           spawn-at-startup = [
-            { argv = [ "nereid-shell" "--no-duplicate" ]; }
+            {
+              argv = [
+                "nereid-shell"
+                "--no-duplicate"
+              ];
+            }
           ];
 
           binds = {

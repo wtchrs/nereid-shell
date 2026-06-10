@@ -1,7 +1,7 @@
 {
   pkgs,
   lib,
-  umuExeList ? "/nonexistent/nereid-shell/umu-exe-list",
+  programProviders ? [ ],
 }:
 
 let
@@ -16,6 +16,10 @@ let
     builtins.readFile ../scripts/quickshell-program-list.awk
   );
 
+  programProvidersFile = pkgs.writeText "nereid-program-providers" (
+    lib.concatStringsSep "\n" (map toString programProviders)
+  );
+
   quickshellProgramList = pkgs.replaceVarsWith {
     src = ../scripts/quickshell-program-list.sh;
     replacements = {
@@ -23,7 +27,7 @@ let
       awk = "${pkgs.gawk}/bin/awk";
       find = "${pkgs.findutils}/bin/find";
       jq = "${pkgs.jq}/bin/jq";
-      inherit umuExeList;
+      programProvidersFile = "${programProvidersFile}";
     };
     dir = "bin";
     isExecutable = true;

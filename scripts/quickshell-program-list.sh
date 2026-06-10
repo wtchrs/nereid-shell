@@ -5,7 +5,7 @@ AWK_SCRIPT="@awkFile@"
 FIND="@find@"
 AWK="@awk@"
 JQ="@jq@"
-UMU_EXE_LIST="@umuExeList@"
+PROGRAM_PROVIDERS_FILE="@programProvidersFile@"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -29,17 +29,31 @@ desktop_json="$(
         "$AWK" -v env="$DESKTOP_ENV" -v has_flatpak="$HAS_FLATPAK" -f "$AWK_SCRIPT"
 )"
 
-umu_json="[]"
-if [[ -x "$UMU_EXE_LIST" ]] || command -v umu-exe-list >/dev/null 2>&1; then
-    if [[ -x "$UMU_EXE_LIST" ]]; then
-        umu_list_cmd="$UMU_EXE_LIST"
-    else
-        umu_list_cmd="$(command -v umu-exe-list)"
-    fi
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
 
-    if ! umu_json="$("$umu_list_cmd" 2>/dev/null)" || ! printf '%s\n' "$umu_json" | "$JQ" -e 'type == "array"' >/dev/null; then
-        umu_json="[]"
-    fi
+json_inputs=()
+printf '%s\n' "$desktop_json" >"$tmpdir/desktop.json"
+json_inputs+=("$tmpdir/desktop.json")
+
+if [[ -r "$PROGRAM_PROVIDERS_FILE" ]]; then
+    provider_index=0
+    while IFS= read -r provider || [[ -n "$provider" ]]; do
+        [[ -n "$provider" ]] || continue
+        [[ -x "$provider" ]] || continue
+
+        if json="$("$provider" 2>/dev/null)" &&
+            printf '%s\n' "$json" |
+                "$JQ" -e 'type == "array" and all(.[]; type == "object" and (.name | type == "string") and (.exec | type == "string"))' >/dev/null; then
+            provider_file="$tmpdir/provider-$provider_index.json"
+            printf '%s\n' "$json" >"$provider_file"
+            json_inputs+=("$provider_file")
+            provider_index=$((provider_index + 1))
+        fi
+    done <"$PROGRAM_PROVIDERS_FILE"
 fi
 
-"$JQ" -c -s 'add' <(printf '%s\n' "$desktop_json") <(printf '%s\n' "$umu_json")
+"$JQ" -c -s '
+  add
+  | unique_by(.id // (.name + "\u0000" + .exec))
+' "${json_inputs[@]}"
