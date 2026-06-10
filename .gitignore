@@ -1,0 +1,5 @@
+# nix build result symlink
+result
+
+# direnv directory
+.direnv

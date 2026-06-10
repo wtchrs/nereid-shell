@@ -1,0 +1,58 @@
+import QtQuick
+import Quickshell
+import QtQuick.Controls
+import QtQuick.Layouts
+import qs.configs
+
+Item {
+    id: root
+
+    implicitWidth: container.width
+    implicitHeight: container.height
+
+    Timer {
+        id: clockTimer
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: reload()
+    }
+
+    Component.onCompleted: {
+        reload()
+    }
+
+    function reload() {
+        const now = new Date()
+        dateText.text = Qt.formatDate(now, "MMM dd")
+        yearText.text = Qt.formatDate(now, "yyyy")
+        const timeFormat = now.getSeconds() % 2 == 0 ? "HH mm" : "HH:mm"
+        timeText.text = Qt.formatTime(now, timeFormat);
+    }
+
+    ColumnLayout {
+        id: container
+        width: Config.bar.width
+        spacing: 0
+
+        ClockText {
+            id: dateText
+        }
+
+        ClockText {
+            id: yearText
+        }
+
+        ClockText {
+            id: timeText
+            font.bold: true
+        }
+    }
+
+    component ClockText: Text {
+        color: Config.theme.fg
+        font.family: Config.font.text
+        font.pixelSize: 13
+        Layout.alignment: Qt.AlignCenter
+    }
+}
