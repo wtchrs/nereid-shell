@@ -81,7 +81,7 @@ in
 
           binds = {
             "Mod+Space" = lib.mkOverride 60 {
-              hotkey-overlay.title = "Run an Application: quickshell app launcher";
+              hotkey-overlay.title = "Run an Application: Nereid shell app launcher";
               action.spawn = [
                 "nereid-shell-ctl"
                 "call"
@@ -91,7 +91,7 @@ in
             };
 
             "Mod+Shift+W" = lib.mkOverride 60 {
-              hotkey-overlay.title = "Reload wallpaper: quickshell";
+              hotkey-overlay.title = "Reload wallpaper: Nereid shell";
               action.spawn = [
                 "nereid-shell-ctl"
                 "call"
