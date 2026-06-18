@@ -45,6 +45,7 @@ let
     pulseaudio
     quickshell
     wireplumber
+    xdg-terminal-exec
   ];
 
   runtimePath = lib.makeBinPath ([ quickshellProgramList ] ++ runtimeDeps);

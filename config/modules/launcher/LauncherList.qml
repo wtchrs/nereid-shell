@@ -8,7 +8,7 @@ Item {
 
     required property var appModel
 
-    signal itemClicked(string exec)
+    signal itemClicked(string exec, bool terminal)
 
     property alias currentIndex: listView.currentIndex
 
@@ -166,7 +166,7 @@ Item {
                 onClicked: {
                     listView.currentIndex = index;
                     if (delegateRoot.modelData.exec) {
-                        root.itemClicked(delegateRoot.modelData.exec);
+                        root.itemClicked(delegateRoot.modelData.exec, delegateRoot.modelData.terminal);
                     }
                 }
             }

@@ -31,11 +31,12 @@ function cmd_exists(cmd,   q, rc) {
     return cmd_cache[cmd]
 }
 
-function parse_desktop(file,   line, in_entry, valid, is_flatpak, name, exec, icon, desc, tryexec, cmd, ok, i, arr) {
+function parse_desktop(file,   line, in_entry, valid, is_flatpak, name, exec, icon, desc, terminal, tryexec, cmd, ok, i, arr) {
     in_entry = 0
     valid = 1
     is_flatpak = 0
     name = exec = icon = desc = ""
+    terminal = "false"
 
     while ((getline line < file) > 0) {
         sub(/\r$/, "", line)
@@ -96,6 +97,7 @@ function parse_desktop(file,   line, in_entry, valid, is_flatpak, name, exec, ic
 
         if (line ~ /^Name=/ && name == "") { name = substr(line, 6); continue }
         if (line ~ /^Icon=/ && icon == "") { icon = substr(line, 6); continue }
+        if (line ~ /^Terminal=/) { terminal = (substr(line, 10) == "true" ? "true" : "false"); continue }
         if ((line ~ /^Description=/ || line ~ /^Comment=/) && desc == "") {
             desc = substr(line, index(line, "=") + 1)
             continue
@@ -112,8 +114,8 @@ function parse_desktop(file,   line, in_entry, valid, is_flatpak, name, exec, ic
     if (!first) printf ","
     first = 0
 
-    printf "{\"name\":\"%s\",\"exec\":\"%s\",\"icon\":\"%s\",\"description\":\"%s\"}",
-           json_escape(name), json_escape(exec), json_escape(icon), json_escape(desc)
+    printf "{\"name\":\"%s\",\"exec\":\"%s\",\"icon\":\"%s\",\"description\":\"%s\",\"terminal\":%s}",
+           json_escape(name), json_escape(exec), json_escape(icon), json_escape(desc), terminal
 }
 
 {

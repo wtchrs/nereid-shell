@@ -133,13 +133,15 @@ PanelWindow {
         listView.currentIndex = root.filteredApps.length > 0 ? 0 : -1;
     }
 
-    function launchApp(exec) {
+    function launchApp(exec, terminal) {
         if (!exec) return;
         const cleaned = exec.replace(/%[fFuUikne]/g, '').trim();
         const argvParts = cleaned.match(/(?:[^\s"]+|"[^"]*")+/g);
         if (!argvParts || argvParts.length === 0)
             return;
-        const argv = argvParts.map(s => s.replace(/^"(.*)"$/, '$1'));
+        let argv = argvParts.map(s => s.replace(/^"(.*)"$/, '$1'));
+        if (terminal)
+            argv = ['xdg-terminal-exec', ...argv];
 
         Quickshell.execDetached(argv);
         closeLauncher();
@@ -182,7 +184,8 @@ PanelWindow {
                     onRequestPrev: listView.decrementCurrentIndex()
                     onRequestLaunch: {
                         if (root.filteredApps[listView.currentIndex]) {
-                            root.launchApp(root.filteredApps[listView.currentIndex].exec)
+                            const selectedApp = root.filteredApps[listView.currentIndex]
+                            root.launchApp(selectedApp.exec, selectedApp.terminal)
                         }
                     }
                     onRequestClose: root.closeLauncher()
@@ -200,7 +203,7 @@ PanelWindow {
                 LauncherList {
                     id: listView
                     appModel: root.filteredApps
-                    onItemClicked: (exec) => root.launchApp(exec)
+                    onItemClicked: (exec, term) => root.launchApp(exec, term)
                 }
             }
         }
