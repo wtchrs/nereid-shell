@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import qs.configs
 import qs.modules.bar.state
 
@@ -21,7 +20,6 @@ Item {
 
     implicitHeight: trackMetadata.implicitHeight
         + Config.mediaPanel.rowSpacing + positionRow.implicitHeight
-        + Config.mediaPanel.rowSpacing + controls.implicitHeight
 
     function clampPosition(position) {
         const length = Number(player ? player.length : 0)
@@ -149,7 +147,7 @@ Item {
             right: parent.right
         }
         implicitHeight: positionSlider.implicitHeight
-            + Config.mediaPanel.rowSpacing + positionLabels.implicitHeight
+            + Config.mediaPanel.rowSpacing + positionDetails.implicitHeight
 
         Slider {
             id: positionSlider
@@ -207,17 +205,26 @@ Item {
             handle: Item {}
         }
 
-        RowLayout {
-            id: positionLabels
+        Item {
+            id: positionDetails
             anchors {
                 top: positionSlider.bottom
                 topMargin: Config.mediaPanel.rowSpacing
                 left: parent.left
                 right: parent.right
             }
+            implicitHeight: Math.max(
+                elapsedLabel.implicitHeight,
+                totalLabel.implicitHeight,
+                controls.implicitHeight
+            )
 
             Text {
                 id: elapsedLabel
+                anchors {
+                    left: parent.left
+                    verticalCenter: parent.verticalCenter
+                }
                 text: mediaRow.seekSupported
                     ? mediaRow.formatTime(positionSlider.pressed
                         ? mediaRow.requestedPosition : mediaRow.currentPosition)
@@ -227,13 +234,12 @@ Item {
                 font.pixelSize: Config.mediaPanel.detailPixelSize
             }
 
-            Item {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-            }
-
             Text {
                 id: totalLabel
+                anchors {
+                    right: parent.right
+                    verticalCenter: parent.verticalCenter
+                }
                 text: mediaRow.seekSupported
                     ? mediaRow.formatTime(mediaRow.player.length)
                     : "--:--"
@@ -241,37 +247,33 @@ Item {
                 font.family: Config.font.text
                 font.pixelSize: Config.mediaPanel.detailPixelSize
             }
-        }
-    }
 
-    Row {
-        id: controls
-        anchors {
-            top: positionRow.bottom
-            topMargin: Config.mediaPanel.rowSpacing
-            horizontalCenter: parent.horizontalCenter
-        }
-        spacing: Config.mediaPanel.controlSpacing
+            Row {
+                id: controls
+                anchors.centerIn: parent
+                spacing: Config.mediaPanel.controlSpacing
 
-        ControlButton {
-            player: mediaRow.player
-            icon: "󰒮"
-            enabled: mediaRow.player && mediaRow.player.canGoPrevious
-            onClicked: MediaState.previous(mediaRow.player)
-        }
+                ControlButton {
+                    player: mediaRow.player
+                    icon: "󰒮"
+                    enabled: mediaRow.player && mediaRow.player.canGoPrevious
+                    onClicked: MediaState.previous(mediaRow.player)
+                }
 
-        ControlButton {
-            player: mediaRow.player
-            icon: mediaRow.player && mediaRow.player.isPlaying ? "󰏤" : "󰐊"
-            enabled: mediaRow.player && mediaRow.player.canTogglePlaying
-            onClicked: MediaState.togglePlaying(mediaRow.player)
-        }
+                ControlButton {
+                    player: mediaRow.player
+                    icon: mediaRow.player && mediaRow.player.isPlaying ? "󰏤" : "󰐊"
+                    enabled: mediaRow.player && mediaRow.player.canTogglePlaying
+                    onClicked: MediaState.togglePlaying(mediaRow.player)
+                }
 
-        ControlButton {
-            player: mediaRow.player
-            icon: "󰒭"
-            enabled: mediaRow.player && mediaRow.player.canGoNext
-            onClicked: MediaState.next(mediaRow.player)
+                ControlButton {
+                    player: mediaRow.player
+                    icon: "󰒭"
+                    enabled: mediaRow.player && mediaRow.player.canGoNext
+                    onClicked: MediaState.next(mediaRow.player)
+                }
+            }
         }
     }
 
