@@ -7,24 +7,16 @@ import qs.modules.bar.state
 Item {
     id: root
 
-    property string device: BrightnessState.device
-    readonly property var brightnessState: BrightnessState
+    readonly property var activeDevice: BrightnessState.activeDevice
 
     implicitWidth: Config.bar.width
     implicitHeight: container.implicitHeight
-
-    onDeviceChanged: {
-        if (root.device !== root.brightnessState.device)
-            root.brightnessState.setDevice(root.device)
-    }
 
     // --- Helpers ---
 
     function getIcon() {
         const icons = [" ", " ", " ", " ", " "];
-        const level = root.brightnessState.ready || root.brightnessState.everReady
-            ? root.brightnessState.brightness
-            : 0;
+        const level = root.activeDevice && root.activeDevice.valid ? root.activeDevice.percent : 0;
         var idx = Math.min(Math.floor(level / 20), 4);
         if (level > 0 && idx < 0) idx = 0;
         return icons[idx];
@@ -46,8 +38,8 @@ Item {
         }
 
         Text {
-            text: root.brightnessState.ready || root.brightnessState.everReady
-                ? `${root.brightnessState.brightness}%`
+            text: root.activeDevice && root.activeDevice.valid
+                ? `${root.activeDevice.percent}%`
                 : "--"
             color: Config.theme.fg
             font.family: Config.font.text
@@ -62,11 +54,10 @@ Item {
         cursorShape: Qt.PointingHandCursor
 
         onWheel: {
-            if (wheel.angleDelta.y > 0) {
-                root.brightnessState.increase();
-            } else {
-                root.brightnessState.decrease();
-            }
+            if (wheel.angleDelta.y === 0)
+                return
+
+            BrightnessState.stepActive(wheel.angleDelta.y > 0 ? 1 : -1)
         }
     }
 }
