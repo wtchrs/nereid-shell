@@ -54,6 +54,27 @@ Singleton {
         property int hideDuration: 150
     }
 
+    property QtObject mediaPanel: QtObject {
+        property int width: 300
+        property int padding: 12
+        property int playerSpacing: 12
+        property int rowSpacing: 6
+        property int controlSpacing: 6
+        property int radius: 10
+        property int borderWidth: 1
+        property int sliderHeight: 6
+        property int sliderHandleSize: 14
+        property int controlButtonSize: 28
+        property int appNamePixelSize: 13
+        property int trackPixelSize: 14
+        property int detailPixelSize: 12
+        property int iconPixelSize: 16
+        property int seekDebounceInterval: 100
+        property int positionRefreshInterval: 250
+        property int showDuration: 200
+        property int hideDuration: 150
+    }
+
     property QtObject launcher: QtObject {
         property int windowWidth: 400
         property int windowHeight: 640

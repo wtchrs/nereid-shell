@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.Mpris
 import qs.configs
+import qs.modules.bar.state
 
 Item {
     id: root
@@ -26,10 +27,6 @@ Item {
     property font textFont: Qt.font({ family: Config.font.text, pixelSize: 13 })
     property color foregroundColor: Config.theme.fg
 
-    // Allow player selection policy to be injected from outside
-    // function(players) -> MprisPlayer|null
-    property var playerSelector: null
-
     // Allow string formatting policy to be injected from outside
     // function(player) -> string
     property var trackTextFormatter: null
@@ -38,7 +35,7 @@ Item {
     implicitWidth: root.widthHint
     implicitHeight: container.implicitHeight
 
-    readonly property var players: Mpris.players?.values ?? []
+    readonly property var players: MediaState.players
 
     function defaultPickPlayer(playersList) {
         if (!playersList || playersList.length === 0)
@@ -47,12 +44,9 @@ Item {
     }
 
     readonly property MprisPlayer player: {
-        const list = root.players
-        if (root.playerSelector) {
-            const picked = root.playerSelector(list)
-            return picked || root.defaultPickPlayer(list)
-        }
-        return root.defaultPickPlayer(list)
+        if (MediaState.activeMedia)
+            return MediaState.activeMedia
+        return root.defaultPickPlayer(root.players)
     }
 
     readonly property bool hasTrackInfo: {
@@ -65,7 +59,7 @@ Item {
 
     visible: root.showWhenIdle || root.hasTrackInfo
 
-    readonly property alias hovered: hover.hovered
+    readonly property alias hovered: interaction.containsMouse
 
     function htmlEscape(s) {
         const v = (s === null || s === undefined) ? "" : String(s)
@@ -107,17 +101,19 @@ Item {
 
     signal clicked(MprisPlayer player)
 
-    HoverHandler { id: hover }
-
     MouseArea {
+        id: interaction
         anchors.fill: parent
+        z: 1
+        hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         enabled: !!root.player
 
         onClicked: {
+            MediaState.setActiveMedia(root.player)
             root.clicked(root.player)
             if (root.toggleOnClick && root.player)
-                root.player.togglePlaying()
+                MediaState.togglePlaying(root.player)
         }
     }
 
@@ -148,5 +144,10 @@ Item {
 
             running: root.visible && (!root.marqueeOnHover || root.hovered)
         }
+    }
+
+    MediaPanel {
+        mediaItem: root
+        triggerMouseArea: interaction
     }
 }
