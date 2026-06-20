@@ -59,6 +59,7 @@ Singleton {
         property int padding: 12
         property int playerSpacing: 12
         property int rowSpacing: 6
+        property int thumbnailSpacing: 10
         property int controlSpacing: 6
         property int radius: 10
         property int borderWidth: 1

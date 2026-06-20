@@ -17,8 +17,9 @@ Item {
     property real currentPosition: 0
     property real requestedPosition: 0
 
-    implicitHeight: playerHeader.implicitHeight
-        + Config.mediaPanel.rowSpacing + trackInfo.implicitHeight
+    readonly property bool hasTrackArt: trackArt.status === Image.Ready
+
+    implicitHeight: trackMetadata.implicitHeight
         + Config.mediaPanel.rowSpacing + positionRow.implicitHeight
         + Config.mediaPanel.rowSpacing + controls.implicitHeight
 
@@ -71,63 +72,78 @@ Item {
         }
     }
 
-    Column {
-        id: playerHeader
+    Item {
+        id: trackMetadata
         width: parent.width
-        spacing: Config.mediaPanel.rowSpacing
+        implicitHeight: metadataText.implicitHeight
 
-        Text {
-            width: parent.width
-            text: mediaRow.player && mediaRow.player.identity
-                ? mediaRow.player.identity
-                : (mediaRow.player && mediaRow.player.desktopEntry
-                    ? mediaRow.player.desktopEntry
-                    : "Media player")
-            color: Config.theme.fgDim
-            font.family: Config.font.text
-            font.pixelSize: Config.mediaPanel.appNamePixelSize
-            elide: Text.ElideRight
+        Column {
+            id: metadataText
+            anchors {
+                left: parent.left
+                right: trackArtContainer.visible ? trackArtContainer.left : parent.right
+                rightMargin: trackArtContainer.visible ? Config.mediaPanel.thumbnailSpacing : 0
+            }
+            spacing: Config.mediaPanel.rowSpacing
+
+            Text {
+                width: parent.width
+                text: mediaRow.player && mediaRow.player.identity
+                    ? mediaRow.player.identity
+                    : (mediaRow.player && mediaRow.player.desktopEntry
+                        ? mediaRow.player.desktopEntry
+                        : "Media player")
+                color: Config.theme.fgDim
+                font.family: Config.font.text
+                font.pixelSize: Config.mediaPanel.appNamePixelSize
+                elide: Text.ElideRight
+            }
+
+            Text {
+                width: parent.width
+                text: mediaRow.player && mediaRow.player.trackTitle
+                    ? mediaRow.player.trackTitle
+                    : "Unknown title"
+                color: Config.theme.fg
+                font.family: Config.font.text
+                font.pixelSize: Config.mediaPanel.trackPixelSize
+                font.bold: true
+                elide: Text.ElideRight
+            }
+
+            Text {
+                width: parent.width
+                text: mediaRow.player && mediaRow.player.trackArtist
+                    ? mediaRow.player.trackArtist
+                    : "Unknown artist"
+                color: Config.theme.fgDim
+                font.family: Config.font.text
+                font.pixelSize: Config.mediaPanel.detailPixelSize
+                elide: Text.ElideRight
+            }
         }
-    }
 
-    Column {
-        id: trackInfo
-        anchors {
-            top: playerHeader.bottom
-            topMargin: Config.mediaPanel.rowSpacing
-            left: parent.left
-            right: parent.right
-        }
-        spacing: Config.mediaPanel.rowSpacing
+        Item {
+            id: trackArtContainer
+            anchors.right: parent.right
+            width: metadataText.implicitHeight
+            height: width
+            visible: mediaRow.hasTrackArt
 
-        Text {
-            width: parent.width
-            text: mediaRow.player && mediaRow.player.trackTitle
-                ? mediaRow.player.trackTitle
-                : "Unknown title"
-            color: Config.theme.fg
-            font.family: Config.font.text
-            font.pixelSize: Config.mediaPanel.trackPixelSize
-            font.bold: true
-            elide: Text.ElideRight
-        }
-
-        Text {
-            width: parent.width
-            text: mediaRow.player && mediaRow.player.trackArtist
-                ? mediaRow.player.trackArtist
-                : "Unknown artist"
-            color: Config.theme.fgDim
-            font.family: Config.font.text
-            font.pixelSize: Config.mediaPanel.detailPixelSize
-            elide: Text.ElideRight
+            Image {
+                id: trackArt
+                anchors.fill: parent
+                source: mediaRow.player && mediaRow.player.trackArtUrl
+                    ? mediaRow.player.trackArtUrl : ""
+                fillMode: Image.PreserveAspectFit
+            }
         }
     }
 
     Item {
         id: positionRow
         anchors {
-            top: trackInfo.bottom
+            top: trackMetadata.bottom
             topMargin: Config.mediaPanel.rowSpacing
             left: parent.left
             right: parent.right
