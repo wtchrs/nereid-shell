@@ -40,6 +40,20 @@ Singleton {
         property int width: 50
     }
 
+    property QtObject brightnessPanel: QtObject {
+        property int width: 260
+        property int padding: 12
+        property int rowSpacing: 10
+        property int deviceSpacing: 12
+        property int radius: 10
+        property int borderWidth: 1
+        property int sliderHeight: 6
+        property int sliderHandleSize: 14
+        property int debounceInterval: 75
+        property int showDuration: 200
+        property int hideDuration: 150
+    }
+
     property QtObject launcher: QtObject {
         property int windowWidth: 400
         property int windowHeight: 640

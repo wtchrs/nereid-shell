@@ -50,7 +50,10 @@ Item {
     // --- Interaction ---
 
     MouseArea {
+        id: interaction
         anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
 
         onWheel: {
@@ -59,5 +62,10 @@ Item {
 
             BrightnessState.stepActive(wheel.angleDelta.y > 0 ? 1 : -1)
         }
+    }
+
+    BrightnessPanel {
+        brightnessItem: root
+        triggerMouseArea: interaction
     }
 }

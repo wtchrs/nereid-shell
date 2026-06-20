@@ -13,8 +13,10 @@ Singleton {
     property bool discoveryQueued: false
     property string discoveryOutput: ""
     property var pendingDeltas: ({})
+    property var pendingBrightness: ({})
     property string writeDeviceName: ""
     property int writeDelta: 0
+    property int writeBrightness: -1
     property int lastExitCode: 0
     property string lastError: ""
     property string writeErrorText: ""
@@ -47,14 +49,14 @@ Singleton {
     }
 
     function resolveActiveDevice() {
+        if (root.activeDevice && root.deviceByName(root.activeDevice.name) === root.activeDevice)
+            return
+
         const preferred = root.deviceByName(root.preferredDevice)
         if (preferred) {
             root.activeDevice = preferred
             return
         }
-
-        if (root.activeDevice && root.deviceByName(root.activeDevice.name) === root.activeDevice)
-            return
 
         if (root.devices.some(device => device && !device.typeLoaded)) {
             activeDeviceTimer.restart()
@@ -128,6 +130,11 @@ Singleton {
             delete pending[name]
         root.pendingDeltas = pending
 
+        const pendingAbsolute = Object.assign({}, root.pendingBrightness)
+        for (const name in existing)
+            delete pendingAbsolute[name]
+        root.pendingBrightness = pendingAbsolute
+
         for (const name in existing)
             existing[name].destroy()
 
@@ -145,6 +152,8 @@ Singleton {
         if (!device || !isFinite(amount) || amount === 0)
             return
 
+        root.activeDevice = device
+
         const pending = Object.assign({}, root.pendingDeltas)
         const nextDelta = (pending[device.name] || 0) + amount
         if (nextDelta === 0)
@@ -152,6 +161,28 @@ Singleton {
         else
             pending[device.name] = nextDelta
         root.pendingDeltas = pending
+
+        const pendingAbsolute = Object.assign({}, root.pendingBrightness)
+        delete pendingAbsolute[device.name]
+        root.pendingBrightness = pendingAbsolute
+        root.startNextWrite()
+    }
+
+    function setBrightness(name, percent) {
+        const device = root.deviceByName(name)
+        const value = Math.round(Number(percent))
+        if (!device || !isFinite(value))
+            return
+
+        root.activeDevice = device
+
+        const pending = Object.assign({}, root.pendingBrightness)
+        pending[device.name] = Math.max(0, Math.min(100, value))
+        root.pendingBrightness = pending
+
+        const pendingDeltas = Object.assign({}, root.pendingDeltas)
+        delete pendingDeltas[device.name]
+        root.pendingDeltas = pendingDeltas
         root.startNextWrite()
     }
 
@@ -165,16 +196,24 @@ Singleton {
             return
 
         const pending = Object.assign({}, root.pendingDeltas)
-        const names = Object.keys(pending).sort((left, right) => left.localeCompare(right))
+        const pendingAbsolute = Object.assign({}, root.pendingBrightness)
+        const names = Array.from(new Set(Object.keys(pending).concat(Object.keys(pendingAbsolute))))
+            .sort((left, right) => left.localeCompare(right))
         for (const name of names) {
+            const hasAbsoluteBrightness = Object.prototype.hasOwnProperty.call(pendingAbsolute, name)
+            const brightness = pendingAbsolute[name]
             const delta = pending[name]
+            delete pendingAbsolute[name]
             delete pending[name]
             root.pendingDeltas = pending
-            if (!delta)
+            root.pendingBrightness = pendingAbsolute
+
+            if (!hasAbsoluteBrightness && !delta)
                 continue
 
             root.writeDeviceName = name
-            root.writeDelta = delta
+            root.writeDelta = hasAbsoluteBrightness ? 0 : delta
+            root.writeBrightness = hasAbsoluteBrightness ? brightness : -1
             root.writeErrorText = ""
             root.lastError = ""
             writeProc.running = true
@@ -182,6 +221,7 @@ Singleton {
         }
 
         root.pendingDeltas = pending
+        root.pendingBrightness = pendingAbsolute
     }
 
     onPreferredDeviceChanged: root.resolveActiveDevice()
@@ -238,7 +278,9 @@ Singleton {
         id: writeProc
         command: [
             "brightnessctl", "-c", "backlight", "-d", root.writeDeviceName, "set",
-            `${Math.abs(root.writeDelta)}%${root.writeDelta >= 0 ? "+" : "-"}`
+            root.writeBrightness >= 0
+                ? `${root.writeBrightness}%`
+                : `${Math.abs(root.writeDelta)}%${root.writeDelta >= 0 ? "+" : "-"}`
         ]
         running: false
 
@@ -261,6 +303,7 @@ Singleton {
 
             root.writeDeviceName = ""
             root.writeDelta = 0
+            root.writeBrightness = -1
             root.startNextWrite()
         }
     }
