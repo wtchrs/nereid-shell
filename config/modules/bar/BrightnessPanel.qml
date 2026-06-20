@@ -234,6 +234,7 @@ PanelWindow {
                             enabled: deviceRow.modelData.valid
                             value: pressed ? deviceRow.requestedPercent : deviceRow.modelData.percent
                             implicitHeight: Config.brightnessPanel.sliderHandleSize
+                            hoverEnabled: true
 
                             onPressedChanged: {
                                 if (pressed) {
@@ -258,9 +259,18 @@ PanelWindow {
                                 y: brightnessSlider.topPadding
                                     + brightnessSlider.availableHeight / 2 - height / 2
                                 width: brightnessSlider.availableWidth
-                                height: Config.brightnessPanel.sliderHeight
+                                height: brightnessSlider.hovered
+                                    ? Config.brightnessPanel.sliderHandleSize
+                                    : Config.brightnessPanel.sliderHeight
                                 radius: height / 2
                                 color: Config.theme.overlay
+
+                                Behavior on height {
+                                    NumberAnimation {
+                                        duration: 100
+                                        easing.type: Easing.OutCubic
+                                    }
+                                }
 
                                 Rectangle {
                                     width: parent.width * brightnessSlider.visualPosition
@@ -270,17 +280,7 @@ PanelWindow {
                                 }
                             }
 
-                            handle: Rectangle {
-                                x: brightnessSlider.leftPadding + brightnessSlider.visualPosition
-                                    * (brightnessSlider.availableWidth - width)
-                                y: brightnessSlider.topPadding + brightnessSlider.availableHeight / 2 - height / 2
-                                width: Config.brightnessPanel.sliderHandleSize
-                                height: Config.brightnessPanel.sliderHandleSize
-                                radius: width / 2
-                                color: brightnessSlider.pressed ? Config.theme.fg : Config.theme.surfaceActive
-                                border.color: Config.theme.br
-                                border.width: Config.brightnessPanel.borderWidth
-                            }
+                            handle: Item {}
                         }
 
                         Timer {
