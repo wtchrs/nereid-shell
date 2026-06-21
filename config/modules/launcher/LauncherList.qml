@@ -51,6 +51,7 @@ Item {
             id: delegateRoot
 
             required property var modelData
+            required property int index
 
             width: listView.width
             height: Config.launcher.itemHeight
@@ -164,7 +165,7 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    listView.currentIndex = index;
+                    listView.currentIndex = delegateRoot.index;
                     if (delegateRoot.modelData.exec) {
                         root.itemClicked(delegateRoot.modelData.exec, delegateRoot.modelData.terminal);
                     }
