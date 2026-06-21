@@ -9,7 +9,7 @@ let
 
   configRoot = pkgs.runCommand "${appName}-config" { } ''
     mkdir -p "$out"
-    cp -r ${../config}/. "$out/"
+    cp -r ${../src}/. "$out/"
   '';
 
   awkFile = pkgs.writeText "quickshell-program-list.awk" (
