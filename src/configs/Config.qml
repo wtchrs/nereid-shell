@@ -40,6 +40,16 @@ Singleton {
         property int width: 50
     }
 
+    property QtObject trayMenu: QtObject {
+        property int minWidth: 150
+        property int maxWidth: 420
+        property int padding: 5
+        property int itemHeight: 24
+        property int itemSpacing: 2
+        property int iconSize: 16
+        property int iconGap: 5
+    }
+
     property QtObject brightnessPanel: QtObject {
         property int width: 260
         property int padding: 12
