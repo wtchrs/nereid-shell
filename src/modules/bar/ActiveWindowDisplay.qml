@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Widgets
 import qs.configs
 import qs.niri
 
@@ -26,19 +27,55 @@ Item {
         return ("active_window_id" in ws) ? ws.active_window_id : null
     }
 
-    readonly property string resolvedTitle: {
+    readonly property var activeWindow: {
         const id = root.activeWindowId
         if (id === null || id === undefined)
-            return ""
+            return null
 
         const wins = (root.niri && Array.isArray(root.niri.windows)) ? root.niri.windows : []
-        const w = wins.find(x => x && x.id === id) || null
-        const t = (w && w.title !== null && w.title !== undefined) ? String(w.title) : ""
-        return t
+        return wins.find(x => x && x.id === id) || null
+    }
+
+    readonly property string resolvedTitle: {
+        const w = root.activeWindow
+        return (w && w.title !== null && w.title !== undefined) ? String(w.title) : ""
+    }
+
+    readonly property string resolvedAppId: {
+        const w = root.activeWindow
+        return (w && w.app_id !== null && w.app_id !== undefined) ? String(w.app_id) : ""
+    }
+
+    readonly property string resolvedIconSource: {
+        const appId = root.resolvedAppId
+        if (appId === "")
+            return ""
+
+        const entry = DesktopEntries.heuristicLookup(appId)
+            || DesktopEntries.byId(appId)
+            || DesktopEntries.byId(appId + ".desktop")
+        const entryIcon = (entry && entry.icon) ? String(entry.icon) : ""
+        if (entryIcon !== "") {
+            const entryIconPath = Quickshell.iconPath(entryIcon, true)
+            if (entryIconPath !== "")
+                return entryIconPath
+        }
+
+        return Quickshell.iconPath(appId, true)
     }
 
     // Flicker guard: keep the previous title briefly if the id updates before the windows list.
     property string stableTitle: ""
+    property string stableIconSource: ""
+
+    readonly property int iconSize: 20
+    readonly property int iconTextGap: 6
+    readonly property bool shouldShowTitle: root.stableTitle !== ""
+    readonly property bool shouldShowIcon: root.stableIconSource !== ""
+    readonly property real iconSlotWidth: root.shouldShowIcon ? root.iconSize + root.iconTextGap : 0
+    readonly property real contentWidth: root.shouldShowTitle
+        ? Math.min(root.height, root.iconSlotWidth + titleText.implicitWidth)
+        : 0
 
     Timer {
         id: clearDelay
@@ -46,19 +83,23 @@ Item {
         repeat: false
         onTriggered: {
             // Still unresolved: clear it.
-            if (root.resolvedTitle === "")
+            if (root.resolvedTitle === "") {
                 root.stableTitle = ""
+                root.stableIconSource = ""
+            }
         }
     }
 
     onResolvedTitleChanged: {
         if (root.resolvedTitle !== "") {
             root.stableTitle = root.resolvedTitle
+            root.stableIconSource = root.resolvedIconSource
             clearDelay.stop()
         } else {
             // No active window: clear immediately.
             if (root.activeWindowId === null || root.activeWindowId === undefined || !root.activeWorkspace) {
                 root.stableTitle = ""
+                root.stableIconSource = ""
                 clearDelay.stop()
             } else {
                 // Possible event reordering: delay clearing slightly.
@@ -67,12 +108,15 @@ Item {
         }
     }
 
-    readonly property bool shouldShowTitle: root.stableTitle !== ""
+    onResolvedIconSourceChanged: {
+        if (root.resolvedTitle !== "")
+            root.stableIconSource = root.resolvedIconSource
+    }
 
     Item {
         id: titleWrapper
         width: root.width
-        implicitHeight: titleText.width
+        implicitHeight: titleContent.width
 
         states: [
             State {
@@ -100,23 +144,45 @@ Item {
             }
         ]
 
-        Text {
-            id: titleText
-            text: root.stableTitle
-
-            font.pixelSize: 14
-            font.family: Config.font.text
-            font.bold: true
-            color: Config.theme.fg
-
-            width: root.height
-            clip: true
-            elide: Text.ElideRight
+        Item {
+            id: titleContent
+            width: root.contentWidth
+            height: Math.max(root.shouldShowIcon ? root.iconSize : 0, titleText.implicitHeight)
 
             transform: [
                 Rotation { angle: 90 },
-                Translate { x: (root.width + titleText.implicitHeight) / 2 }
+                Translate { x: (root.width + titleContent.height) / 2 }
             ]
+
+            IconImage {
+                id: activeWindowIcon
+                visible: root.shouldShowIcon
+                source: root.stableIconSource
+                implicitSize: root.iconSize
+                width: root.iconSize
+                height: root.iconSize
+                y: (parent.height - height) / 2
+                asynchronous: true
+                smooth: true
+                mipmap: true
+            }
+
+            Text {
+                id: titleText
+                text: root.stableTitle
+
+                font.pixelSize: 14
+                font.family: Config.font.text
+                font.bold: true
+                color: Config.theme.fg
+
+                x: root.iconSlotWidth
+                y: (parent.height - height) / 2
+                width: Math.max(0, parent.width - x)
+                height: implicitHeight
+                clip: true
+                elide: Text.ElideRight
+            }
         }
     }
 }
