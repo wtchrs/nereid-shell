@@ -73,9 +73,15 @@ Rectangle {
                     Layout.bottomMargin: 10
                 }
 
+                Network {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.bottomMargin: tray.visible ? 5 : 10
+                }
+
                 Tray {
+                    id: tray
+
                     Layout.bottomMargin: 10
-                    barWindow: root
                 }
 
                 Clock {}

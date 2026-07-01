@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Services.SystemTray
 import qs.configs
@@ -14,13 +15,62 @@ AnchoredHoverPanel {
 
     property Item trayItem: null
     property MouseArea iconMouseArea: null
+    property SystemTrayItem systemTray: null
+    property var currentMenuSource: null
 
-    readonly property SystemTrayItem systemTray: trayItem ? trayItem.systemTray : null
-    readonly property int contentNaturalWidth: menuColumn.naturalWidth + Config.trayMenu.padding * 2
+    readonly property Item currentPage: menuStack.currentItem
+    readonly property bool canShowMenu: !!systemTray
+        && systemTray.hasMenu
+        && !!currentMenuSource
+        && !!currentPage
+        && currentPage.hasItems
+    readonly property int contentNaturalWidth: (currentPage ? currentPage.naturalWidth : 0)
+        + Config.trayMenu.padding * 2
     readonly property int windowWidth: Math.max(
         Config.trayMenu.minWidth,
         Math.min(contentNaturalWidth, Config.trayMenu.maxWidth)
     )
+
+    function resetMenu() {
+        menuStack.clear(StackView.Immediate)
+        currentMenuSource = null
+
+        if (!systemTray || !systemTray.hasMenu || !systemTray.menu)
+            return
+
+        currentMenuSource = systemTray
+        menuStack.push(menuPageComponent, {
+            "systemTray": systemTray,
+            "showBackRow": false
+        }, StackView.Immediate)
+    }
+
+    function pushMenu(menuHandle, showBackRow, immediate) {
+        if (!menuHandle)
+            return
+
+        menuStack.push(menuPageComponent, {
+            "menu": menuHandle,
+            "systemTray": null,
+            "showBackRow": showBackRow
+        }, immediate ? StackView.Immediate : StackView.Transition)
+    }
+
+    function showFor(item, mouseArea, tray) {
+        trayItem = item
+        iconMouseArea = mouseArea
+        systemTray = tray
+
+        resetMenu()
+
+        if (trayItem && iconMouseArea && iconMouseArea.containsMouse) {
+            active = true
+        }
+
+        if (trayItem && (visible || isShown || (iconMouseArea && iconMouseArea.containsMouse))) {
+            updatePosition()
+        }
+    }
 
     onContainsMouseChanged: function() {
         if (!containsMouse) {
@@ -45,10 +95,46 @@ AnchoredHoverPanel {
         }
     }
 
+    onCanShowMenuChanged: {
+        if (canShowMenu && (isShown || visible))
+            updatePosition()
+    }
+
+    Connections {
+        target: root.systemTray
+        ignoreUnknownSignals: true
+
+        function onHasMenuChanged() { root.resetMenu() }
+        function onMenuChanged() { root.resetMenu() }
+    }
+
+    Connections {
+        target: root.currentPage
+
+        function onNaturalWidthChanged() { if (root.isShown || root.visible) root.updatePosition() }
+        function onImplicitHeightChanged() { if (root.isShown || root.visible) root.updatePosition() }
+        function onHasItemsChanged() { if (root.canShowMenu && (root.isShown || root.visible)) root.updatePosition() }
+    }
+
+    Component {
+        id: menuPageComponent
+
+        TrayMenuPage {
+            width: menuStack.width
+
+            onSubmenuRequested: menuHandle => root.pushMenu(menuHandle, true, false)
+            onBackRequested: {
+                if (menuStack.depth > 1)
+                    menuStack.pop()
+            }
+            onLeafTriggered: root.active = false
+        }
+    }
+
     Rectangle {
         id: popupContent
         implicitWidth: windowWidth
-        implicitHeight: menuColumn.implicitHeight + Config.trayMenu.padding * 2
+        implicitHeight: menuStack.implicitHeight + Config.trayMenu.padding * 2
         width: implicitWidth
         height: implicitHeight
         color: Config.theme.bg
@@ -59,12 +145,12 @@ AnchoredHoverPanel {
         states: [
             State {
                 name: "visible"
-                when: root.isShown
+                when: root.isShown && root.canShowMenu
                 PropertyChanges { target: popupContent; opacity: 1; x: borderMargin }
             },
             State {
                 name: "hidden"
-                when: !root.isShown
+                when: !root.isShown || !root.canShowMenu
                 PropertyChanges { target: popupContent; opacity: 0; x: 0 }
             }
         ]
@@ -80,98 +166,30 @@ AnchoredHoverPanel {
             }
         ]
 
-        Column {
-            id: menuColumn
+        StackView {
+            id: menuStack
+
             anchors.fill: parent
             anchors.margins: Config.trayMenu.padding
-            readonly property int naturalWidth: {
-                let maxWidth = 0
-                for (let i = 0; i < menuRepeater.count; i++) {
-                    const item = menuRepeater.itemAt(i)
-                    if (item)
-                        maxWidth = Math.max(maxWidth, item.implicitWidth)
-                }
-                return maxWidth
+            clip: true
+            implicitWidth: currentItem ? currentItem.naturalWidth : 0
+            implicitHeight: currentItem ? currentItem.implicitHeight : 0
+
+            pushEnter: Transition {
+                NumberAnimation { property: "x"; from: menuStack.width; to: 0; duration: 150; easing.type: Easing.OutCubic }
+                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 150; easing.type: Easing.OutCubic }
             }
-            spacing: Config.trayMenu.itemSpacing
-
-            QsMenuOpener {
-                id: menuOpener
-                menu: root.systemTray ? root.systemTray.menu : null
+            pushExit: Transition {
+                NumberAnimation { property: "x"; from: 0; to: -menuStack.width / 3; duration: 150; easing.type: Easing.OutCubic }
+                NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 150; easing.type: Easing.OutCubic }
             }
-
-            Repeater {
-                id: menuRepeater
-
-                model: menuOpener.children
-                delegate: Rectangle {
-                    id: menuItem
-
-                    width: parent.width
-                    implicitWidth: modelData.isSeparator ? 0 : itemContent.implicitWidth
-                    height: modelData.isSeparator ? 1 : Config.trayMenu.itemHeight
-                    color: itemMouseArea.containsMouse ? "#444" : "transparent"
-
-                    Rectangle {
-                        visible: modelData.isSeparator
-                        anchors.fill: parent
-                        color: Config.theme.br
-                    }
-
-                    Item {
-                        id: itemContent
-
-                        visible: !modelData.isSeparator
-                        anchors.fill: parent
-                        implicitWidth: Config.trayMenu.padding
-                            + Config.trayMenu.iconSize
-                            + Config.trayMenu.iconGap
-                            + itemText.implicitWidth
-                            + Config.trayMenu.padding
-
-                        Item {
-                            id: iconSlot
-
-                            x: Config.trayMenu.padding
-                            width: Config.trayMenu.iconSize
-                            height: Config.trayMenu.iconSize
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            Image {
-                                anchors.fill: parent
-                                source: modelData.icon
-                                visible: modelData.icon
-                            }
-                        }
-
-                        Text {
-                            id: itemText
-
-                            x: iconSlot.x + iconSlot.width + Config.trayMenu.iconGap
-                            width: Math.max(0, menuItem.width
-                                - Config.trayMenu.padding * 2
-                                - Config.trayMenu.iconSize
-                                - Config.trayMenu.iconGap)
-                            height: parent.height
-                            text: modelData.text || ""
-                            color: modelData.enabled ? Config.theme.fg : Config.theme.fgDim
-                            verticalAlignment: Text.AlignVCenter
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    MouseArea {
-                        id: itemMouseArea
-                        anchors.fill: parent
-                        enabled: modelData.enabled && !modelData.isSeparator
-                        cursorShape: Qt.PointingHandCursor
-                        hoverEnabled: true
-                        onClicked: {
-                            modelData.triggered()
-                            root.active = false
-                        }
-                    }
-                }
+            popEnter: Transition {
+                NumberAnimation { property: "x"; from: -menuStack.width / 3; to: 0; duration: 150; easing.type: Easing.OutCubic }
+                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 150; easing.type: Easing.OutCubic }
+            }
+            popExit: Transition {
+                NumberAnimation { property: "x"; from: 0; to: menuStack.width; duration: 150; easing.type: Easing.OutCubic }
+                NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 150; easing.type: Easing.OutCubic }
             }
         }
     }

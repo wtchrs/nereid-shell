@@ -32,12 +32,6 @@ Rectangle {
             if (event.button === Qt.LeftButton) {
                 systemTray.activate()
             }
-            /*
-            else if (event.button == Qt.RightButton) {
-                const pos = mapToItem(null, event.x, event.y)
-                systemTray.display(barWindow, pos.x, pos.y)
-            }
-            */
         }
     }
 

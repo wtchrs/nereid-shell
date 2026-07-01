@@ -3,28 +3,20 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.SystemTray
 import qs.configs
-import ".."
 
 Item {
     id: root
     implicitWidth: Config.bar.width
     implicitHeight: container.implicitHeight
-
-    required property var barWindow
-    property Item activeTrayItem: null
-    property MouseArea activeIconMouseArea: null
+    visible: trayRepeater.count > 0
 
     ColumnLayout {
         id: container
         spacing: 5
 
-        Network {
-            anchors {
-                horizontalCenter: parent.horizontalCenter
-            }
-        }
-
         Repeater {
+            id: trayRepeater
+
             model: SystemTray.items
             delegate: TrayItem {
                 id: trayItem
@@ -32,8 +24,7 @@ Item {
 
                 onHoveredChanged: {
                     if (hovered) {
-                        root.activeTrayItem = trayItem
-                        root.activeIconMouseArea = trayItem.iconMouseAreaRef
+                        sharedMenu.showFor(trayItem, trayItem.iconMouseAreaRef, trayItem.systemTray)
                     }
                 }
             }
@@ -42,7 +33,5 @@ Item {
 
     TrayItemMenu {
         id: sharedMenu
-        trayItem: root.activeTrayItem
-        iconMouseArea: root.activeIconMouseArea
     }
 }
