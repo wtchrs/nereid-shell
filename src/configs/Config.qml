@@ -64,6 +64,22 @@ Singleton {
         property int hideDuration: 150
     }
 
+    property QtObject audioPanel: QtObject {
+        property int width: 280
+        property int padding: 12
+        property int rowSpacing: 8
+        property int radius: 10
+        property int borderWidth: 1
+        property int outputRowHeight: 30
+        property int outputRowSpacing: 2
+        property int outputMaxVisibleItems: 5
+        property int sliderHeight: 6
+        property int sliderHandleSize: 14
+        property int volumeDebounceInterval: 75
+        property int showDuration: 200
+        property int hideDuration: 150
+    }
+
     property QtObject mediaPanel: QtObject {
         property int width: 300
         property int padding: 12

@@ -21,8 +21,8 @@ Item {
             id: volumeIcon
             text: {
                 if (!root.audioState.everValid) return "󰕾";
-                if (root.audioState.muted || root.audioState.volume === 0) return "󰝟";
-                if (root.audioState.volume < 0.5) return "󰕿";
+                if (root.audioState.displayMuted || root.audioState.displayVolume === 0) return "󰝟";
+                if (root.audioState.displayVolume < 0.5) return "󰕿";
                 return "󰕾";
             }
             color: Config.theme.fg
@@ -33,7 +33,7 @@ Item {
         Text {
             text: {
                 if (!root.audioState.everValid) return "--";
-                return root.audioState.muted ? "Muted" : `${Math.round(root.audioState.volume * 100)}%`;
+                return root.audioState.displayMuted ? "Muted" : `${Math.round(root.audioState.displayVolume * 100)}%`;
             }
             color: Config.theme.fg
             font.family: Config.font.text
@@ -42,15 +42,21 @@ Item {
     }
 
     MouseArea {
+        id: interaction
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
+        hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onWheel: {
-            if (wheel.angleDelta.y > 0) {
-                root.audioState.increase();
-            } else {
-                root.audioState.decrease();
-            }
+            if (wheel.angleDelta.y === 0)
+                return
+
+            root.audioState.stepSelected(wheel.angleDelta.y > 0 ? 1 : -1)
         }
+    }
+
+    AudioPanel {
+        audioItem: root
+        triggerMouseArea: interaction
     }
 }

@@ -15,12 +15,49 @@ Singleton {
     property bool usePactlFallback: false
     property bool snapshotQueued: false
     property string lastError: ""
+    property string selectedSinkKey: ""
+    property bool selectionPinned: false
 
     readonly property bool pipewireReady: Pipewire.ready
-    readonly property var trackedSink: Pipewire.defaultAudioSink
+    readonly property var defaultSink: Pipewire.defaultAudioSink
+    readonly property var sinks: {
+        const nodes = [...(Pipewire.nodes?.values ?? [])]
+        return nodes
+            .filter(node => node && node.audio && node.isSink && !node.isStream)
+            .sort((left, right) => {
+                const labelComparison = root.sinkLabel(left).localeCompare(root.sinkLabel(right))
+                if (labelComparison !== 0)
+                    return labelComparison
+
+                return root.sinkKey(left).localeCompare(root.sinkKey(right))
+            })
+    }
+    readonly property var sinkOptions: root.sinks.map(node => ({
+        key: root.sinkKey(node),
+        label: root.sinkLabel(node),
+        node: node,
+    }))
+    readonly property var selectedSink: root.sinkByKey(root.selectedSinkKey)
     readonly property var sinkAudio: {
-        const sink = root.trackedSink
+        const sink = root.selectedSink
         return sink ? sink.audio : null
+    }
+    readonly property real displayVolume: root.volume
+    readonly property bool displayMuted: root.muted
+    readonly property bool panelAvailable: !root.usePactlFallback
+        && root.pipewireReady && root.sinks.length > 0 && !!root.selectedSink && root.valid
+    readonly property string panelMessage: {
+        if (root.usePactlFallback)
+            return "PipeWire unavailable"
+        if (!root.pipewireReady)
+            return "PipeWire is not ready"
+        if (root.sinks.length === 0)
+            return "No audio output devices"
+        if (!root.selectedSink || !root.sinkAudio)
+            return "No selected output device"
+        if (!root.valid)
+            return root.lastError || "Audio device is not ready"
+        return ""
     }
 
     function isFiniteNumber(value) {
@@ -30,7 +67,75 @@ Singleton {
     function clampVolume(value) {
         if (!root.isFiniteNumber(value))
             return 0
-        return Math.max(0, value)
+        return Math.max(0, Math.min(1, value))
+    }
+
+    function sinkKey(node) {
+        if (!node)
+            return ""
+
+        const name = String(node.name || "").trim()
+        return name !== "" ? name : String(node.id)
+    }
+
+    function sinkLabel(node) {
+        if (!node)
+            return "Unknown output"
+
+        for (const value of [node.description, node.nickname, node.name, node.id]) {
+            const label = String(value || "").trim()
+            if (label !== "")
+                return label
+        }
+
+        return "Unknown output"
+    }
+
+    function sinkByKey(key) {
+        const normalized = String(key || "")
+        if (normalized === "")
+            return null
+
+        return root.sinks.find(node => root.sinkKey(node) === normalized) || null
+    }
+
+    function sinkOptionIndex(key) {
+        const normalized = String(key || "")
+        return root.sinkOptions.findIndex(option => option && option.key === normalized)
+    }
+
+    function resolveSelectedSink() {
+        if (root.usePactlFallback)
+            return
+
+        const pinned = root.sinkByKey(root.selectedSinkKey)
+        if (root.selectionPinned && pinned)
+            return
+
+        if (root.selectionPinned && !pinned)
+            root.selectionPinned = false
+
+        const nextSink = root.defaultSink || root.sinks[0] || null
+        const nextKey = root.sinkKey(nextSink)
+        if (root.selectedSinkKey !== nextKey)
+            root.selectedSinkKey = nextKey
+    }
+
+    function selectSinkKey(key) {
+        const sink = root.sinkByKey(key)
+        if (!sink)
+            return
+
+        root.selectionPinned = true
+        root.selectedSinkKey = root.sinkKey(sink)
+
+        try {
+            Pipewire.preferredDefaultAudioSink = sink
+        } catch (error) {
+            root.lastError = `Failed to select default sink: ${error}`
+        }
+
+        root.updateFromPipewire()
     }
 
     function applyState(nextVolume, nextMuted, source) {
@@ -71,7 +176,9 @@ Singleton {
         if (root.usePactlFallback)
             return
 
-        const sink = root.trackedSink
+        root.resolveSelectedSink()
+
+        const sink = root.selectedSink
         const audio = root.sinkAudio
 
         if (!root.pipewireReady || !sink || !sink.ready || !audio) {
@@ -88,6 +195,37 @@ Singleton {
         }
 
         root.applyState(nextVolume, audio.muted, "pipewire")
+    }
+
+    function setSelectedVolume(percent) {
+        if (root.usePactlFallback)
+            return
+
+        const audio = root.sinkAudio
+        if (!root.selectedSink || !audio) {
+            root.markInvalid("PipeWire sink is not ready")
+            return
+        }
+
+        const nextVolume = root.clampVolume(Number(percent) / 100)
+        audio.volume = nextVolume
+        root.applyState(nextVolume, audio.muted, "pipewire")
+    }
+
+    function stepSelected(deltaPercent) {
+        const amount = Math.trunc(Number(deltaPercent))
+        if (!isFinite(amount) || amount === 0)
+            return
+
+        if (!root.usePactlFallback && root.selectedSink && root.sinkAudio) {
+            root.setSelectedVolume(Math.round(root.displayVolume * 100) + amount)
+            return
+        }
+
+        if (amount > 0)
+            root.increase()
+        else
+            root.decrease()
     }
 
     function applyPactlSnapshot(output) {
@@ -132,16 +270,19 @@ Singleton {
     }
 
     onPipewireReadyChanged: root.updateFromPipewire()
-    onTrackedSinkChanged: root.updateFromPipewire()
+    onDefaultSinkChanged: root.updateFromPipewire()
+    onSinksChanged: root.updateFromPipewire()
+    onSelectedSinkChanged: root.updateFromPipewire()
 
     Component.onCompleted: {
+        root.resolveSelectedSink()
         root.updateFromPipewire()
         if (!root.valid)
             pipewireProbeTimer.start()
     }
 
     PwObjectTracker {
-        objects: root.trackedSink ? [root.trackedSink] : []
+        objects: root.sinks
     }
 
     Timer {
@@ -165,7 +306,7 @@ Singleton {
     }
 
     Connections {
-        target: root.trackedSink
+        target: root.selectedSink
         ignoreUnknownSignals: true
 
         function onReadyChanged() {
