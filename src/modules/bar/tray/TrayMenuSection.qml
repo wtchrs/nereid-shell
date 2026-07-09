@@ -8,24 +8,27 @@ Column {
 
     property var menu: null
     property SystemTrayItem systemTray: null
-    property bool showBackRow: false
+    property int resetGeneration: 0
+    property var expandedEntry: null
 
-    readonly property bool hasItems: showBackRow || menuRepeater.count > 0
+    readonly property bool hasItems: menuRepeater.count > 0
     readonly property int naturalWidth: {
-        let maxWidth = showBackRow ? backRow.implicitWidth : 0
+        let maxWidth = 0
         for (let i = 0; i < menuRepeater.count; i++) {
             const item = menuRepeater.itemAt(i)
             if (item)
-                maxWidth = Math.max(maxWidth, item.implicitWidth)
+                maxWidth = Math.max(maxWidth, item.naturalWidth)
         }
         return maxWidth
     }
 
-    signal submenuRequested(var menuHandle)
-    signal backRequested()
     signal leafTriggered()
 
     spacing: Config.trayMenu.itemSpacing
+
+    onMenuChanged: expandedEntry = null
+    onSystemTrayChanged: expandedEntry = null
+    onResetGenerationChanged: expandedEntry = null
 
     QsMenuOpener {
         id: menuOpener
@@ -33,25 +36,19 @@ Column {
         menu: root.systemTray ? root.systemTray.menu : root.menu
     }
 
-    TrayMenuRow {
-        id: backRow
-
-        width: parent.width
-        visible: root.showBackRow
-        backRow: true
-
-        onBackRequested: root.backRequested()
-    }
-
     Repeater {
         id: menuRepeater
 
         model: menuOpener.children
-        delegate: TrayMenuRow {
+        delegate: TrayMenuAccordionItem {
             width: parent.width
             menuEntry: modelData
+            expanded: root.expandedEntry === modelData
+            resetGeneration: root.resetGeneration
 
-            onSubmenuRequested: menuHandle => root.submenuRequested(menuHandle)
+            onToggleRequested: entry => {
+                root.expandedEntry = root.expandedEntry === entry ? null : entry
+            }
             onLeafTriggered: root.leafTriggered()
         }
     }

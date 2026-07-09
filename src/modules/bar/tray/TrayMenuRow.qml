@@ -5,19 +5,18 @@ Rectangle {
     id: root
 
     property var menuEntry: null
-    property bool backRow: false
+    property bool expanded: false
 
-    readonly property bool separator: !backRow && entryProperty("isSeparator", false)
-    readonly property bool entryEnabled: backRow || entryProperty("enabled", false)
-    readonly property bool hasChildren: !backRow && entryProperty("hasChildren", false)
+    readonly property bool separator: entryProperty("isSeparator", false)
+    readonly property bool entryEnabled: entryProperty("enabled", false)
+    readonly property bool hasChildren: entryProperty("hasChildren", false)
     readonly property var submenuMenu: hasChildren ? menuEntry : null
     readonly property bool canOpenSubmenu: entryEnabled && hasChildren && !!submenuMenu
-    readonly property bool canTriggerLeaf: !backRow && entryEnabled && !separator && !hasChildren
-    readonly property bool clickable: backRow || canOpenSubmenu || canTriggerLeaf
-    readonly property int indicatorWidth: backRow || canOpenSubmenu ? 14 : 0
+    readonly property bool canTriggerLeaf: entryEnabled && !separator && !hasChildren
+    readonly property bool clickable: canOpenSubmenu || canTriggerLeaf
+    readonly property int indicatorWidth: canOpenSubmenu ? 14 : 0
 
     signal submenuRequested(var menuHandle)
-    signal backRequested()
     signal leafTriggered()
 
     width: parent ? parent.width : implicitWidth
@@ -65,16 +64,8 @@ Rectangle {
 
             Image {
                 anchors.fill: parent
-                source: root.backRow ? "" : root.entryProperty("icon", "")
+                source: root.entryProperty("icon", "")
                 visible: !!source
-            }
-
-            Text {
-                anchors.centerIn: parent
-                visible: root.backRow
-                text: "<"
-                color: Config.theme.fg
-                font.pixelSize: 13
             }
         }
 
@@ -88,7 +79,7 @@ Rectangle {
                 - Config.trayMenu.iconGap
                 - (root.indicatorWidth > 0 ? Config.trayMenu.iconGap + root.indicatorWidth : 0))
             height: parent.height
-            text: root.backRow ? "Back" : root.entryProperty("text", "")
+            text: root.entryProperty("text", "")
             color: root.clickable ? Config.theme.fg : Config.theme.fgDim
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
@@ -102,7 +93,7 @@ Rectangle {
                 verticalCenter: parent.verticalCenter
             }
             width: root.indicatorWidth
-            text: ">"
+            text: root.expanded ? "v" : ">"
             color: Config.theme.fg
             horizontalAlignment: Text.AlignRight
             verticalAlignment: Text.AlignVCenter
@@ -118,9 +109,7 @@ Rectangle {
         hoverEnabled: true
 
         onClicked: {
-            if (root.backRow) {
-                root.backRequested()
-            } else if (root.canOpenSubmenu) {
+            if (root.canOpenSubmenu) {
                 root.submenuRequested(root.submenuMenu)
             } else if (root.canTriggerLeaf) {
                 root.menuEntry.triggered()

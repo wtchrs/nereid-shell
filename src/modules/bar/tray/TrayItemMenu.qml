@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import Quickshell
 import Quickshell.Services.SystemTray
 import qs.configs
@@ -16,52 +15,55 @@ AnchoredHoverPanel {
     property Item trayItem: null
     property MouseArea iconMouseArea: null
     property SystemTrayItem systemTray: null
-    property var currentMenuSource: null
+    property SystemTrayItem currentMenuSource: null
+    property int menuResetGeneration: 0
 
-    readonly property Item currentPage: menuStack.currentItem
     readonly property bool canShowMenu: !!systemTray
         && systemTray.hasMenu
         && !!currentMenuSource
-        && !!currentPage
-        && currentPage.hasItems
-    readonly property int contentNaturalWidth: (currentPage ? currentPage.naturalWidth : 0)
+        && rootSection.hasItems
+    readonly property int contentNaturalWidth: rootSection.naturalWidth
         + Config.trayMenu.padding * 2
     readonly property int windowWidth: Math.max(
         Config.trayMenu.minWidth,
         Math.min(contentNaturalWidth, Config.trayMenu.maxWidth)
     )
+    readonly property int windowHeight: Math.min(
+        rootSection.implicitHeight + Config.trayMenu.padding * 2,
+        Config.trayMenu.maxHeight
+    )
+
+    function resetAccordionState() {
+        menuResetGeneration += 1
+        if (typeof menuViewport !== "undefined")
+            menuViewport.contentY = 0
+    }
+
+    function clearMenuState() {
+        currentMenuSource = null
+        resetAccordionState()
+    }
 
     function resetMenu() {
-        menuStack.clear(StackView.Immediate)
-        currentMenuSource = null
-
+        clearMenuState()
         if (!systemTray || !systemTray.hasMenu || !systemTray.menu)
             return
 
         currentMenuSource = systemTray
-        menuStack.push(menuPageComponent, {
-            "systemTray": systemTray,
-            "showBackRow": false
-        }, StackView.Immediate)
-    }
-
-    function pushMenu(menuHandle, showBackRow, immediate) {
-        if (!menuHandle)
-            return
-
-        menuStack.push(menuPageComponent, {
-            "menu": menuHandle,
-            "systemTray": null,
-            "showBackRow": showBackRow
-        }, immediate ? StackView.Immediate : StackView.Transition)
     }
 
     function showFor(item, mouseArea, tray) {
+        const trayChanged = trayItem !== item || iconMouseArea !== mouseArea || systemTray !== tray
+
+        if (trayChanged)
+            clearMenuState()
+
         trayItem = item
         iconMouseArea = mouseArea
         systemTray = tray
 
-        resetMenu()
+        if (trayChanged && systemTray && systemTray.hasMenu && systemTray.menu)
+            currentMenuSource = systemTray
 
         if (trayItem && iconMouseArea && iconMouseArea.containsMouse) {
             active = true
@@ -100,6 +102,11 @@ AnchoredHoverPanel {
             updatePosition()
     }
 
+    onVisibleChanged: {
+        if (!visible && !isShown)
+            resetAccordionState()
+    }
+
     Connections {
         target: root.systemTray
         ignoreUnknownSignals: true
@@ -109,32 +116,17 @@ AnchoredHoverPanel {
     }
 
     Connections {
-        target: root.currentPage
+        target: rootSection
 
         function onNaturalWidthChanged() { if (root.isShown || root.visible) root.updatePosition() }
         function onImplicitHeightChanged() { if (root.isShown || root.visible) root.updatePosition() }
         function onHasItemsChanged() { if (root.canShowMenu && (root.isShown || root.visible)) root.updatePosition() }
     }
 
-    Component {
-        id: menuPageComponent
-
-        TrayMenuPage {
-            width: menuStack.width
-
-            onSubmenuRequested: menuHandle => root.pushMenu(menuHandle, true, false)
-            onBackRequested: {
-                if (menuStack.depth > 1)
-                    menuStack.pop()
-            }
-            onLeafTriggered: root.active = false
-        }
-    }
-
     Rectangle {
         id: popupContent
         implicitWidth: windowWidth
-        implicitHeight: menuStack.implicitHeight + Config.trayMenu.padding * 2
+        implicitHeight: windowHeight
         width: implicitWidth
         height: implicitHeight
         color: Config.theme.bg
@@ -166,30 +158,25 @@ AnchoredHoverPanel {
             }
         ]
 
-        StackView {
-            id: menuStack
+        Flickable {
+            id: menuViewport
 
             anchors.fill: parent
             anchors.margins: Config.trayMenu.padding
+            contentWidth: width
+            contentHeight: rootSection.implicitHeight
+            interactive: contentHeight > height
+            boundsBehavior: Flickable.StopAtBounds
             clip: true
-            implicitWidth: currentItem ? currentItem.naturalWidth : 0
-            implicitHeight: currentItem ? currentItem.implicitHeight : 0
 
-            pushEnter: Transition {
-                NumberAnimation { property: "x"; from: menuStack.width; to: 0; duration: 150; easing.type: Easing.OutCubic }
-                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 150; easing.type: Easing.OutCubic }
-            }
-            pushExit: Transition {
-                NumberAnimation { property: "x"; from: 0; to: -menuStack.width / 3; duration: 150; easing.type: Easing.OutCubic }
-                NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 150; easing.type: Easing.OutCubic }
-            }
-            popEnter: Transition {
-                NumberAnimation { property: "x"; from: -menuStack.width / 3; to: 0; duration: 150; easing.type: Easing.OutCubic }
-                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 150; easing.type: Easing.OutCubic }
-            }
-            popExit: Transition {
-                NumberAnimation { property: "x"; from: 0; to: menuStack.width; duration: 150; easing.type: Easing.OutCubic }
-                NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 150; easing.type: Easing.OutCubic }
+            TrayMenuSection {
+                id: rootSection
+
+                width: menuViewport.width
+                systemTray: root.currentMenuSource
+                resetGeneration: root.menuResetGeneration
+
+                onLeafTriggered: root.active = false
             }
         }
     }
