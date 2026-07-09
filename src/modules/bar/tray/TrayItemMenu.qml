@@ -7,7 +7,7 @@ import qs.components
 AnchoredHoverPanel {
     id: root
 
-    layershellNamespace: "quickshell:tray-menu"
+    layershellNamespace: "quickshell:panel"
     anchorItem: trayItem
     triggerMouseArea: iconMouseArea
     contentItem: popupContent

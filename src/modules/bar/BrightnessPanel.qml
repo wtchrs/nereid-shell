@@ -7,7 +7,7 @@ import qs.modules.bar.state
 AnchoredHoverPanel {
     id: root
 
-    layershellNamespace: "quickshell:brightness-panel"
+    layershellNamespace: "quickshell:panel"
     anchorItem: brightnessItem
     contentItem: panelContent
 

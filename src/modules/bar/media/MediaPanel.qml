@@ -6,7 +6,7 @@ import qs.modules.bar.state
 AnchoredHoverPanel {
     id: root
 
-    layershellNamespace: "quickshell:media-panel"
+    layershellNamespace: "quickshell:panel"
     anchorItem: mediaItem
     contentItem: panelContent
     active: MediaState.players.length > 0

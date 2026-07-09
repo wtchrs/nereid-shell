@@ -7,7 +7,7 @@ import qs.modules.bar.state
 AnchoredHoverPanel {
     id: root
 
-    layershellNamespace: "quickshell:audio-panel"
+    layershellNamespace: "quickshell:panel"
     anchorItem: audioItem
     contentItem: panelContent
 
