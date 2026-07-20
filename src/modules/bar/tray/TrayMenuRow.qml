@@ -80,6 +80,8 @@ Rectangle {
                 - (root.indicatorWidth > 0 ? Config.trayMenu.iconGap + root.indicatorWidth : 0))
             height: parent.height
             text: root.entryProperty("text", "")
+            font.family: Config.font.text
+            font.pixelSize: 14
             color: root.clickable ? Config.theme.fg : Config.theme.fgDim
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
@@ -93,7 +95,9 @@ Rectangle {
                 verticalCenter: parent.verticalCenter
             }
             width: root.indicatorWidth
-            text: root.expanded ? "v" : ">"
+            text: root.expanded ? "" : ""
+            font.family: Config.font.icon
+            font.pixelSize: 14
             color: Config.theme.fg
             horizontalAlignment: Text.AlignRight
             verticalAlignment: Text.AlignVCenter
