@@ -7,28 +7,20 @@ import qs.configs
 Item {
     id: root
 
-    // --- Configuration (Waybar style) ---
     readonly property int criticalThreshold: 15
     readonly property int warningThreshold: 30
-    property bool showTime: false
 
-    // --- UPower Device Access ---
-    // Upower.displayDevice indicates primary battery.
     readonly property var battery: UPower.displayDevice
-
-    // UPower State Enums: 0: Unknown, 1: Charging, 2: Discharging, 3: Empty, 4: Fully Charged, 5: Pending Charge ...
+    readonly property bool batteryAvailable: battery.ready && battery.isPresent
     readonly property bool isCharging: battery.state === UPowerDeviceState.Charging
     readonly property bool isFull: battery.state === UPowerDeviceState.FullyCharged
-    readonly property bool isPlugged: isCharging || isFull || battery.state === UPowerDeviceState.PendingCharge
-
     readonly property double percentage: battery.percentage * 100
 
     implicitWidth: Config.bar.width
     implicitHeight: container.implicitHeight
 
-    // --- Helpers ---
-
     function getIcon() {
+        if (!root.batteryAvailable) return " ";
         if (root.isCharging) return "󰂄";
         if (root.isFull) return "";
 
@@ -41,31 +33,12 @@ Item {
     }
 
     function getColor() {
-        // Replace colors with global config
+        if (!root.batteryAvailable) return Config.theme.fgDim;
         if (root.isCharging) return "#a6da95"; // Green
         if (percentage <= root.criticalThreshold) return "#ed8796"; // Red
         if (percentage <= root.warningThreshold) return "#eed49f"; // Yellow
         return Config.theme.fg;
     }
-
-    function getFormattedTime() {
-        let seconds = 0;
-        if (root.isCharging) {
-            seconds = battery.timeToFull;
-        } else {
-            seconds = battery.timeToEmpty;
-        }
-
-        if (seconds <= 0) return "";
-
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-
-        if (h > 0) return `${h}h ${m}m`;
-        return `${m}m`;
-    }
-
-    // --- UI Layout ---
 
     RowLayout {
         id: container
@@ -80,26 +53,26 @@ Item {
             font.pixelSize: 14
         }
 
-        // Info (Percentage or Time)
         Text {
-            text: {
-                if (root.showTime) {
-                    const timeStr = getFormattedTime();
-                    return timeStr !== "" ? timeStr : "Calc...";
-                } else {
-                    return Math.round(percentage) + "%";
-                }
-            }
+            text: root.batteryAvailable ? `${Math.round(root.percentage)}%` : "--"
             color: getColor()
             font.family: Config.font.text
             font.pixelSize: 14
         }
     }
 
-    // --- Interaction ---
     MouseArea {
+        id: interaction
         anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.showTime = !root.showTime
+        acceptedButtons: Qt.NoButton
+        hoverEnabled: true
+    }
+
+    BatteryPanel {
+        batteryItem: root
+        triggerMouseArea: interaction
+        battery: root.battery
+        batteryIcon: root.getIcon()
+        accentColor: root.getColor()
     }
 }
