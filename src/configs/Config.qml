@@ -93,6 +93,21 @@ Singleton {
         property int hideDuration: 150
     }
 
+    property QtObject clockPanel: QtObject {
+        property int width: 300
+        property int padding: 12
+        property int rowSpacing: 8
+        property int sectionSpacing: 12
+        property int dayCellHeight: 32
+        property int radius: 10
+        property int borderWidth: 1
+        property int showDuration: 200
+        property int hideDuration: 150
+        property color holidayColor: "#ed8796"
+        property string holidayCountryCode: "KR"
+        property string holidaySubdivisionCode: ""
+    }
+
     property QtObject mediaPanel: QtObject {
         property int width: 300
         property int padding: 12

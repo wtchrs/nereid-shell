@@ -1,11 +1,12 @@
 import QtQuick
 import Quickshell
-import QtQuick.Controls
 import QtQuick.Layouts
 import qs.configs
 
 Item {
     id: root
+
+    property date now: new Date()
 
     implicitWidth: container.width
     implicitHeight: container.height
@@ -23,11 +24,7 @@ Item {
     }
 
     function reload() {
-        const now = new Date()
-        dateText.text = Qt.formatDate(now, "MMM dd")
-        yearText.text = Qt.formatDate(now, "yyyy")
-        const timeFormat = now.getSeconds() % 2 == 0 ? "HH mm" : "HH:mm"
-        timeText.text = Qt.formatTime(now, timeFormat);
+        root.now = new Date()
     }
 
     ColumnLayout {
@@ -37,16 +34,36 @@ Item {
 
         ClockText {
             id: dateText
+            text: Qt.formatDate(root.now, "MMM dd")
         }
 
         ClockText {
             id: yearText
+            text: Qt.formatDate(root.now, "yyyy")
         }
 
         ClockText {
             id: timeText
+            text: Qt.formatTime(
+                root.now,
+                root.now.getSeconds() % 2 === 0 ? "HH mm" : "HH:mm"
+            )
             font.bold: true
         }
+    }
+
+    MouseArea {
+        id: interaction
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+    }
+
+    ClockPanel {
+        clockItem: root
+        triggerMouseArea: interaction
+        now: root.now
     }
 
     component ClockText: Text {
